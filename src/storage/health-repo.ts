@@ -17,8 +17,22 @@ const DEGRADED_THRESHOLD = 1;
 const FAILING_THRESHOLD = 5;
 const DISABLED_THRESHOLD = 10;
 
+export interface HealthThresholds {
+  degradedAfter?: number;
+  failingAfter?: number;
+  disabledAfter?: number;
+}
+
 export class HealthRepo {
-  constructor(private db: D1Database) {}
+  private degradedAfter: number;
+  private failingAfter: number;
+  private disabledAfter: number;
+
+  constructor(private db: D1Database, thresholds?: HealthThresholds) {
+    this.degradedAfter = thresholds?.degradedAfter ?? DEGRADED_THRESHOLD;
+    this.failingAfter = thresholds?.failingAfter ?? FAILING_THRESHOLD;
+    this.disabledAfter = thresholds?.disabledAfter ?? DISABLED_THRESHOLD;
+  }
 
   /**
    * Get health status for a source. Returns null if no health record exists yet.
@@ -94,7 +108,7 @@ export class HealthRepo {
     // Get current failure count to determine new status
     const current = await this.getHealth(sourceId);
     const newFailures = (current?.consecutive_failures ?? 0) + 1;
-    const newStatus = computeStatus(newFailures);
+    const newStatus = computeStatus(newFailures, this.degradedAfter, this.failingAfter, this.disabledAfter);
 
     // Upsert: insert or update health record
     await this.db
@@ -168,9 +182,12 @@ export class HealthRepo {
  */
 function computeStatus(
   failures: number,
+  degraded: number = DEGRADED_THRESHOLD,
+  failing: number = FAILING_THRESHOLD,
+  disabled: number = DISABLED_THRESHOLD,
 ): SourceHealth['status'] {
-  if (failures >= DISABLED_THRESHOLD) return 'disabled';
-  if (failures >= FAILING_THRESHOLD) return 'failing';
-  if (failures >= DEGRADED_THRESHOLD) return 'degraded';
+  if (failures >= disabled) return 'disabled';
+  if (failures >= failing) return 'failing';
+  if (failures >= degraded) return 'degraded';
   return 'healthy';
 }

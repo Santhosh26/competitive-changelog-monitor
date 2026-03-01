@@ -7,9 +7,11 @@ import entriesRoutes from './routes/entries';
 import healthRoutes from './routes/health';
 import actionsRoutes from './routes/actions';
 import digestRoutes from './routes/digest';
+import settingsRoutes from './routes/settings';
 import { classifyEntry, getUsageStats } from './processing/ai-classifier';
 import { computeFinalRelevance } from './delivery/relevance-scorer';
 import { EntriesRepo } from './storage/entries-repo';
+import { SettingsRepo } from './storage/settings-repo';
 
 const app = new Hono<{ Bindings: Env }>();
 
@@ -19,8 +21,9 @@ app.use('*', async (c, next) => {
   // Content Security Policy: strict sandbox, no inline scripts, only HTTPS resources
   c.header('Content-Security-Policy',
     "default-src 'self'; " +
-    "script-src 'self'; " +        // No inline scripts, no external scripts
-    "style-src 'self' 'unsafe-inline'; " + // Styles (unsafe-inline for framework injected styles)
+    "script-src 'self' https://cdn.jsdelivr.net; " + // Chart.js + DOMPurify from jsdelivr
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " + // Google Fonts stylesheets
+    "font-src https://fonts.gstatic.com; " + // Google Fonts font files
     "img-src 'self' https: data:; " + // Images from self, HTTPS, data URIs
     "connect-src 'self'; " +       // API calls only to self
     "frame-src 'none'; " +          // No iframes
@@ -58,8 +61,15 @@ app.get('/api/ai/usage', requireAuth, async (c) => {
 // POST /api/ai/backfill — re-classify all existing entries with AI
 app.post('/api/ai/backfill', requireAuth, async (c) => {
   const entriesRepo = new EntriesRepo(c.env.DB);
+  const settingsRepo = new SettingsRepo(c.env.DB);
+  const config = await settingsRepo.loadConfig();
   const limitParam = new URL(c.req.url).searchParams.get('limit');
   const limit = limitParam ? parseInt(limitParam, 10) : 50;
+
+  const apiKey = config.ai_api_key;
+  if (!apiKey || apiKey.length < 10) {
+    return c.json({ error: 'No AI API key configured in Settings' }, 400);
+  }
 
   // Get entries that haven't been AI-classified yet (no ai_summary)
   const result = await c.env.DB
@@ -81,7 +91,7 @@ app.post('/api/ai/backfill', requireAuth, async (c) => {
         entry.title,
         entry.summary || '',
         entry.competitor_name,
-        c.env.ANTHROPIC_API_KEY,
+        apiKey,
         c.env.KV,
       );
 
@@ -124,6 +134,7 @@ app.route('/api/entries', entriesRoutes);
 app.route('/api/health', healthRoutes);
 app.route('/api/actions', actionsRoutes);
 app.route('/api/digest', digestRoutes);
+app.route('/api/settings', settingsRoutes);
 
 // ─── Export Worker handlers ──────────────────────────────────────────
 export default {

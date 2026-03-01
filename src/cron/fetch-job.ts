@@ -16,6 +16,7 @@
 
 import { Env } from '../env';
 import { Source } from '../types';
+import { AiConfig } from '../processing/ai-classifier';
 import { getAdapter } from '../ingestion/adapter-factory';
 import { HealthRepo } from '../storage/health-repo';
 import { validateUrl } from '../security/url-validator';
@@ -27,13 +28,30 @@ interface FetchJobResult {
   succeeded: number;
   failed: number;
   skipped: number;
+  skippedReason?: string;
+}
+
+export interface FetchJobOptions {
+  timeoutMs?: number;
+  maxBytes?: number;
+  browserTimeoutMs?: number;
+  dedupThreshold?: number;
+  dedupWindowHours?: number;
+  healthDegradedAfter?: number;
+  healthFailingAfter?: number;
+  healthDisabledAfter?: number;
+  aiConfig?: AiConfig;
 }
 
 /**
  * Fetch all eligible sources. Called by the cron orchestrator.
  */
-export async function fetchAllSources(env: Env): Promise<FetchJobResult> {
-  const healthRepo = new HealthRepo(env.DB);
+export async function fetchAllSources(env: Env, options: FetchJobOptions = {}): Promise<FetchJobResult> {
+  const healthRepo = new HealthRepo(env.DB, {
+    degradedAfter: options.healthDegradedAfter,
+    failingAfter: options.healthFailingAfter,
+    disabledAfter: options.healthDisabledAfter,
+  });
 
   // 1. Get all enabled sources
   const sourcesResult = await env.DB
@@ -111,8 +129,10 @@ export async function fetchAllSources(env: Env): Promise<FetchJobResult> {
         continue;
       }
 
-      // b. Get the adapter
-      const adapter = getAdapter(source.source_type);
+      // b. Get the adapter (pass browser timeout if applicable)
+      const adapter = getAdapter(source.source_type, {
+        browserTimeoutMs: options.browserTimeoutMs,
+      });
 
       // c. Fetch content
       console.log(
@@ -125,11 +145,15 @@ export async function fetchAllSources(env: Env): Promise<FetchJobResult> {
       );
 
       console.log(
-        `[fetch-job] ✓ ${source.competitor_name} — ${fetchResult.content_length} bytes in ${fetchResult.response_time_ms}ms`,
+        `[fetch-job] ${source.competitor_name} — ${fetchResult.content_length} bytes in ${fetchResult.response_time_ms}ms`,
       );
 
       // d. Process content: parse → diff → dedup → tag → store
-      const processResult = await processRawContent(source, fetchResult, env);
+      const processResult = await processRawContent(source, fetchResult, env, {
+        aiConfig: options.aiConfig,
+        dedupThreshold: options.dedupThreshold,
+        dedupWindowHours: options.dedupWindowHours,
+      });
 
       // e. Record success with entry count
       await healthRepo.recordSuccess(
@@ -144,7 +168,7 @@ export async function fetchAllSources(env: Env): Promise<FetchJobResult> {
       const message =
         error instanceof Error ? error.message : 'Unknown error';
       console.error(
-        `[fetch-job] ✗ ${source.competitor_name} — ${message}`,
+        `[fetch-job] ${source.competitor_name} — ${message}`,
       );
 
       await healthRepo.recordFailure(source.id, null, message);

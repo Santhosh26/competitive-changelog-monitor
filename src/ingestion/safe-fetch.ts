@@ -22,6 +22,8 @@ const USER_AGENT = 'CompetitiveChangelogMonitor/1.0 (bot)';
 export interface SafeFetchOptions {
   /** Override the default timeout (ms). Browser adapter uses 15s. */
   timeoutMs?: number;
+  /** Override the max response size in bytes. Default: 5MB. */
+  maxBytes?: number;
   /** Additional headers to send with the request. */
   headers?: Record<string, string>;
   /** Expected content type for validation ('xml', 'html', 'json'). */
@@ -56,6 +58,7 @@ export async function safeFetch(
 
   // ─── 2. Build request with proper headers ────────────────────────
   const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+  const maxBytes = options.maxBytes ?? MAX_RESPONSE_BYTES;
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
@@ -79,15 +82,15 @@ export async function safeFetch(
       response.headers.get('content-length') || '0',
       10,
     );
-    if (declaredLength > MAX_RESPONSE_BYTES) {
+    if (declaredLength > maxBytes) {
       throw new SafeFetchError(
         'RESPONSE_TOO_LARGE',
-        `Response Content-Length ${declaredLength} exceeds ${MAX_RESPONSE_BYTES} byte limit`,
+        `Response Content-Length ${declaredLength} exceeds ${maxBytes} byte limit`,
       );
     }
 
     // ─── 4. Read body with streaming size check ──────────────────
-    const body = await readBodyWithLimit(response);
+    const body = await readBodyWithLimit(response, maxBytes);
     const responseTimeMs = Date.now() - startTime;
 
     return {
@@ -124,13 +127,13 @@ export async function safeFetch(
  * memory at once. For responses without Content-Length (chunked transfer),
  * we need to stream and count bytes.
  */
-async function readBodyWithLimit(response: Response): Promise<string> {
+async function readBodyWithLimit(response: Response, maxBytes: number = MAX_RESPONSE_BYTES): Promise<string> {
   // Fast path: if Content-Length is declared and small enough, just read it
   const declaredLength = parseInt(
     response.headers.get('content-length') || '0',
     10,
   );
-  if (declaredLength > 0 && declaredLength <= MAX_RESPONSE_BYTES) {
+  if (declaredLength > 0 && declaredLength <= maxBytes) {
     return response.text();
   }
 
@@ -150,11 +153,11 @@ async function readBodyWithLimit(response: Response): Promise<string> {
       if (done) break;
 
       totalBytes += value.byteLength;
-      if (totalBytes > MAX_RESPONSE_BYTES) {
+      if (totalBytes > maxBytes) {
         reader.cancel();
         throw new SafeFetchError(
           'RESPONSE_TOO_LARGE',
-          `Response exceeded ${MAX_RESPONSE_BYTES} byte limit during streaming (read ${totalBytes} bytes)`,
+          `Response exceeded ${maxBytes} byte limit during streaming (read ${totalBytes} bytes)`,
         );
       }
 

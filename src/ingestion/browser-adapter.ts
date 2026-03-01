@@ -28,6 +28,12 @@ const NAVIGATION_TIMEOUT_MS = 15_000; // 15 seconds — JS rendering takes longe
 const MAX_RESPONSE_BYTES = 5 * 1024 * 1024; // 5MB
 
 export class BrowserAdapter implements SourceAdapter {
+  private timeoutMs: number;
+
+  constructor(options?: { timeoutMs?: number }) {
+    this.timeoutMs = options?.timeoutMs ?? NAVIGATION_TIMEOUT_MS;
+  }
+
   /**
    * Fetch a JS-rendered page using headless Chromium.
    *
@@ -59,7 +65,7 @@ export class BrowserAdapter implements SourceAdapter {
       const page = await browser.newPage();
 
       // Security: set navigation timeout to prevent hanging on slow pages
-      page.setDefaultNavigationTimeout(NAVIGATION_TIMEOUT_MS);
+      page.setDefaultNavigationTimeout(this.timeoutMs);
 
       // Block unnecessary resource types to speed up rendering and reduce cost
       await page.setRequestInterception(true);

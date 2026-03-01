@@ -22,10 +22,14 @@ import { ApiAdapter } from './api-adapter';
 import { HtmlAdapter } from './html-adapter';
 import { BrowserAdapter } from './browser-adapter';
 
+export interface AdapterOptions {
+  browserTimeoutMs?: number;
+}
+
 /**
  * Get the correct adapter for a source type.
  */
-export function getAdapter(sourceType: Source['source_type']): SourceAdapter {
+export function getAdapter(sourceType: Source['source_type'], options?: AdapterOptions): SourceAdapter {
   switch (sourceType) {
     case 'rss':
     case 'atom':
@@ -35,7 +39,7 @@ export function getAdapter(sourceType: Source['source_type']): SourceAdapter {
     case 'html':
       return new HtmlAdapter();
     case 'browser':
-      return new BrowserAdapter();
+      return new BrowserAdapter({ timeoutMs: options?.browserTimeoutMs });
     default:
       throw new Error(`Unknown source type: ${sourceType}`);
   }

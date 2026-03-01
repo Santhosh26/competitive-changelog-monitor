@@ -12,10 +12,15 @@ import { applyRules } from '../delivery/rules-engine';
 import { buildDigest } from '../delivery/digest-builder';
 import { sendTelegram, sendSlack } from '../delivery/notifier';
 
-interface DigestJobOptions {
+export interface DigestJobOptions {
   daysBack?: number; // Default: 7 (last week)
   sendTelegram?: boolean; // Default: true
   sendSlack?: boolean; // Default: false
+  tierCritical?: number; // Default: 80
+  tierNotable?: number; // Default: 50
+  telegramBotToken?: string; // Override env
+  telegramChatId?: string; // Override env
+  slackWebhookUrl?: string; // Override env
 }
 
 /**
@@ -28,6 +33,8 @@ export async function generateAndSendDigest(
   const daysBack = options.daysBack ?? 7;
   const shouldSendTelegram = options.sendTelegram ?? true;
   const shouldSendSlack = options.sendSlack ?? false;
+  const tierCritical = options.tierCritical ?? 80;
+  const tierNotable = options.tierNotable ?? 50;
 
   const entriesRepo = new EntriesRepo(env.DB);
   const digestsRepo = new DigestsRepo(env.DB);
@@ -71,8 +78,13 @@ export async function generateAndSendDigest(
 
   console.log(`[digest-job] After rules: ${filtered.length} entries (${entries.length - filtered.length} filtered out)`);
 
-  // 4. Build the digest
-  const digest = buildDigest(filtered, { start: startDate, end: endDate });
+  // 4. Build the digest (pass configurable thresholds)
+  const digest = buildDigest(filtered, {
+    start: startDate,
+    end: endDate,
+    tierCritical,
+    tierNotable,
+  });
 
   // 5. Save digest record
   const digestId = crypto.randomUUID();
@@ -94,11 +106,15 @@ export async function generateAndSendDigest(
   const channels: string[] = [];
   let success = true;
 
-  if (shouldSendTelegram && env.TELEGRAM_BOT_TOKEN && env.TELEGRAM_CHAT_ID) {
+  // Resolve Telegram credentials: settings override > env vars
+  const telegramToken = options.telegramBotToken || env.TELEGRAM_BOT_TOKEN;
+  const telegramChatId = options.telegramChatId || env.TELEGRAM_CHAT_ID;
+
+  if (shouldSendTelegram && telegramToken && telegramChatId) {
     const sent = await sendTelegram(
-      env.TELEGRAM_CHAT_ID,
+      telegramChatId,
       digest.markdown,
-      env.TELEGRAM_BOT_TOKEN,
+      telegramToken,
     );
     if (sent) {
       channels.push('telegram');
@@ -108,9 +124,17 @@ export async function generateAndSendDigest(
   }
 
   if (shouldSendSlack) {
-    // Slack webhook URL would need to be in env (not currently set up)
-    // For now, just skip if not configured
-    console.log('[digest-job] Slack not configured, skipping');
+    const webhookUrl = options.slackWebhookUrl || '';
+    if (webhookUrl) {
+      const sent = await sendSlack(webhookUrl, digest.markdown);
+      if (sent) {
+        channels.push('slack');
+      } else {
+        success = false;
+      }
+    } else {
+      console.log('[digest-job] Slack not configured, skipping');
+    }
   }
 
   // 7. Mark digest as sent

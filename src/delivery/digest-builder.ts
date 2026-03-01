@@ -13,6 +13,8 @@ import { Entry } from '../types';
 interface DigestOptions {
   start: string; // ISO date
   end: string; // ISO date
+  tierCritical?: number; // Default: 80
+  tierNotable?: number; // Default: 50
 }
 
 interface FormattedDigest {
@@ -27,12 +29,15 @@ export function buildDigest(
   entries: Entry[],
   options: DigestOptions,
 ): FormattedDigest {
+  const critMin = options.tierCritical ?? 80;
+  const notMin = options.tierNotable ?? 50;
+
   // Group entries by relevance tier
-  const critical = entries.filter((e) => e.relevance_score >= 80);
+  const critical = entries.filter((e) => e.relevance_score >= critMin);
   const notable = entries.filter(
-    (e) => e.relevance_score >= 50 && e.relevance_score < 80,
+    (e) => e.relevance_score >= notMin && e.relevance_score < critMin,
   );
-  const other = entries.filter((e) => e.relevance_score < 50);
+  const other = entries.filter((e) => e.relevance_score < notMin);
 
   // Sort each tier
   const sortTier = (tier: Entry[]) =>
@@ -71,7 +76,7 @@ export function buildDigest(
 
   // Critical tier
   if (sortedCritical.length > 0) {
-    lines.push('--- CRITICAL (relevance 80+) ---');
+    lines.push(`--- CRITICAL (relevance ${critMin}+) ---`);
     lines.push('');
     for (const entry of sortedCritical) {
       lines.push(formatEntry(entry));
@@ -81,7 +86,7 @@ export function buildDigest(
 
   // Notable tier
   if (sortedNotable.length > 0) {
-    lines.push('--- NOTABLE (relevance 50-79) ---');
+    lines.push(`--- NOTABLE (relevance ${notMin}-${critMin - 1}) ---`);
     lines.push('');
     for (const entry of sortedNotable) {
       lines.push(formatEntry(entry));
@@ -91,7 +96,7 @@ export function buildDigest(
 
   // Other tier
   if (sortedOther.length > 0) {
-    lines.push('--- OTHER (relevance < 50) ---');
+    lines.push(`--- OTHER (relevance < ${notMin}) ---`);
     for (const entry of sortedOther) {
       const tagsStr = entry.tags.join(', ');
       lines.push(`• [${entry.competitor_name}] ${entry.title} (${tagsStr})`);

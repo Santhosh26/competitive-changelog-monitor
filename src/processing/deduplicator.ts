@@ -61,12 +61,13 @@ export function titleSimilarity(a: string, b: string): number {
 function withinTimeWindow(
   dateA: string | null,
   dateB: string | null,
+  windowMs: number = TIME_WINDOW_MS,
 ): boolean {
   if (!dateA || !dateB) return true; // If dates are missing, assume they could be duplicates
   const timeA = new Date(dateA).getTime();
   const timeB = new Date(dateB).getTime();
   if (isNaN(timeA) || isNaN(timeB)) return true;
-  return Math.abs(timeA - timeB) <= TIME_WINDOW_MS;
+  return Math.abs(timeA - timeB) <= windowMs;
 }
 
 /**
@@ -75,9 +76,15 @@ function withinTimeWindow(
  * Operates on existing entries in D1. For each pair of entries from the same
  * competitor that match our similarity criteria, assigns them the same cluster_id.
  */
+export interface DedupConfig {
+  threshold?: number;
+  windowMs?: number;
+}
+
 export async function deduplicateWithinCompetitor(
   competitorName: string,
   db: D1Database,
+  config?: DedupConfig,
 ): Promise<number> {
   // Get recent entries for this competitor (last 7 days, no cluster yet or with cluster)
   const sevenDaysAgo = new Date(
@@ -101,6 +108,8 @@ export async function deduplicateWithinCompetitor(
   const entries = result.results || [];
   if (entries.length < 2) return 0;
 
+  const threshold = config?.threshold ?? SIMILARITY_THRESHOLD;
+  const windowMs = config?.windowMs ?? TIME_WINDOW_MS;
   let clustersFormed = 0;
 
   // Compare each pair
@@ -117,10 +126,11 @@ export async function deduplicateWithinCompetitor(
         // Exact URL match
         a.content_url === b.content_url ||
         // Fuzzy title match + time window
-        (titleSimilarity(a.title, b.title) >= SIMILARITY_THRESHOLD &&
+        (titleSimilarity(a.title, b.title) >= threshold &&
           withinTimeWindow(
             a.published_at || a.first_seen_at,
             b.published_at || b.first_seen_at,
+            windowMs,
           ));
 
       if (isDuplicate) {

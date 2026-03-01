@@ -18,10 +18,16 @@ import { Env } from '../env';
 import { parseContent } from '../processing/parser';
 import { detectChanges } from '../processing/differ';
 import { deduplicateWithinCompetitor } from '../processing/deduplicator';
-import { classifyEntry } from '../processing/ai-classifier';
+import { classifyEntry, AiConfig } from '../processing/ai-classifier';
 import { computeFinalRelevance } from '../delivery/relevance-scorer';
 import { extractPlainText } from '../security/sanitizer';
 import { EntriesRepo } from '../storage/entries-repo';
+
+export interface ProcessOptions {
+  aiConfig?: AiConfig;
+  dedupThreshold?: number;
+  dedupWindowHours?: number;
+}
 
 export interface ProcessResult {
   newEntries: number;
@@ -37,6 +43,7 @@ export async function processRawContent(
   source: Source,
   fetchResult: FetchResult,
   env: Env,
+  options: ProcessOptions = {},
 ): Promise<ProcessResult> {
   const entriesRepo = new EntriesRepo(env.DB);
 
@@ -101,8 +108,9 @@ export async function processRawContent(
       title,
       summary,
       source.competitor_name,
-      env.ANTHROPIC_API_KEY,
+      options.aiConfig?.apiKey || '',
       env.KV,
+      options.aiConfig,
     );
 
     // d. Apply heuristic relevance boosts
@@ -152,6 +160,10 @@ export async function processRawContent(
   const dupCount = await deduplicateWithinCompetitor(
     source.competitor_name,
     env.DB,
+    {
+      threshold: options.dedupThreshold,
+      windowMs: options.dedupWindowHours ? options.dedupWindowHours * 3600 * 1000 : undefined,
+    },
   );
 
   console.log(

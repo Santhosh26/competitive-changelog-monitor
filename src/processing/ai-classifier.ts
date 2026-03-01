@@ -41,6 +41,14 @@ const VALID_TAGS = [
   'General',
 ];
 
+export interface AiConfig {
+  model?: string;
+  maxTokens?: number;
+  budgetCap?: number;
+  apiKey?: string;
+  enabled?: boolean;
+}
+
 export interface ClassificationResult {
   tags: string[];
   relevance: number;
@@ -70,21 +78,33 @@ export async function classifyEntry(
   competitorName: string,
   apiKey: string,
   kv: KVNamespace,
+  config?: AiConfig,
 ): Promise<ClassificationResult> {
+  const effectiveKey = config?.apiKey || apiKey;
+  const enabled = config?.enabled ?? true;
+  const budgetCap = config?.budgetCap ?? MONTHLY_BUDGET_CAP_USD;
+
+  // If AI is disabled via settings, use keyword fallback directly
+  if (!enabled) {
+    return fallbackClassify(title, summary);
+  }
+
   // Check if we have a valid API key
-  if (!apiKey || apiKey === 'sk-ant-xxx' || apiKey.length < 10) {
+  if (!effectiveKey || effectiveKey === 'sk-ant-xxx' || effectiveKey.length < 10) {
     return fallbackClassify(title, summary);
   }
 
   // Check monthly budget before calling API
-  const budgetOk = await checkBudget(kv);
+  const budgetOk = await checkBudget(kv, budgetCap);
   if (!budgetOk) {
     console.log('[ai-classifier] Monthly budget exceeded, using keyword fallback');
     return fallbackClassify(title, summary);
   }
 
   try {
-    const result = await callClaudeAPI(title, summary, competitorName, apiKey);
+    const model = config?.model ?? CLAUDE_MODEL;
+    const maxTokens = config?.maxTokens ?? MAX_TOKENS;
+    const result = await callClaudeAPI(title, summary, competitorName, effectiveKey, model, maxTokens);
 
     // Track usage
     await trackUsage(kv, result.usage.input_tokens, result.usage.output_tokens);
@@ -122,6 +142,8 @@ async function callClaudeAPI(
   summary: string,
   competitorName: string,
   apiKey: string,
+  model: string = CLAUDE_MODEL,
+  maxTokens: number = MAX_TOKENS,
 ): Promise<{
   tags: string[];
   relevance: number;
@@ -158,8 +180,8 @@ Rules:
       'content-type': 'application/json',
     },
     body: JSON.stringify({
-      model: CLAUDE_MODEL,
-      max_tokens: MAX_TOKENS,
+      model,
+      max_tokens: maxTokens,
       messages: [{ role: 'user', content: prompt }],
     }),
   });
@@ -253,14 +275,14 @@ function getUsageKey(): string {
 /**
  * Check if we're within the monthly budget.
  */
-async function checkBudget(kv: KVNamespace): Promise<boolean> {
+async function checkBudget(kv: KVNamespace, budgetCap: number = MONTHLY_BUDGET_CAP_USD): Promise<boolean> {
   const key = getUsageKey();
   const raw = await kv.get(key);
   if (!raw) return true; // No usage yet this month
 
   try {
     const usage: UsageRecord = JSON.parse(raw);
-    return usage.cost_usd < MONTHLY_BUDGET_CAP_USD;
+    return usage.cost_usd < budgetCap;
   } catch {
     return true; // Corrupted record, allow
   }
@@ -307,9 +329,10 @@ async function trackUsage(
 /**
  * Get current month's usage stats (for API/dashboard).
  */
-export async function getUsageStats(kv: KVNamespace): Promise<UsageRecord & { budget_remaining: number; budget_cap: number }> {
+export async function getUsageStats(kv: KVNamespace, budgetCap?: number): Promise<UsageRecord & { budget_remaining: number; budget_cap: number }> {
   const key = getUsageKey();
   const raw = await kv.get(key);
+  const cap = budgetCap ?? MONTHLY_BUDGET_CAP_USD;
 
   const usage: UsageRecord = raw
     ? JSON.parse(raw)
@@ -317,7 +340,7 @@ export async function getUsageStats(kv: KVNamespace): Promise<UsageRecord & { bu
 
   return {
     ...usage,
-    budget_remaining: Math.max(0, MONTHLY_BUDGET_CAP_USD - usage.cost_usd),
-    budget_cap: MONTHLY_BUDGET_CAP_USD,
+    budget_remaining: Math.max(0, cap - usage.cost_usd),
+    budget_cap: cap,
   };
 }

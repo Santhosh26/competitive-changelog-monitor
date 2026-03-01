@@ -17,5 +17,4 @@ export interface Env {
   // Secrets (set via `wrangler secret put`)
   TELEGRAM_BOT_TOKEN: string;
   TELEGRAM_CHAT_ID: string;
-  ANTHROPIC_API_KEY: string;
 }
