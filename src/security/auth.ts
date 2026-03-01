@@ -13,6 +13,15 @@
 import { Context, Next } from 'hono';
 import { Env } from '../env';
 
+type AppEnv = {
+  Bindings: Env;
+  Variables: {
+    'user:email': string;
+    'user:name': string;
+    'user:jwt': JWTPayload;
+  };
+};
+
 interface JWTPayload {
   iss?: string;
   sub?: string;
@@ -67,7 +76,7 @@ function parseAccessJWT(token: string): JWTPayload | null {
  * Extracts user email and stores in context.
  * Returns 401 if JWT is missing or invalid.
  */
-export async function requireAuth(c: Context<{ Bindings: Env }>, next: Next) {
+export async function requireAuth(c: Context<AppEnv>, next: Next) {
   // Get JWT from CF_Authorization cookie or Authorization header
   let token: string | null = null;
 

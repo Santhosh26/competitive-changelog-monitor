@@ -3,6 +3,10 @@ main = "src/index.ts"
 compatibility_date = "2025-02-27"
 compatibility_flags = ["nodejs_compat"]
 
+# Serve frontend static assets alongside the Worker API
+[assets]
+directory = "frontend"
+
 # Cron triggers — two schedules:
 # 1. Fetch sources every 6 hours (catch updates within the same day)
 # 2. Send digest every Monday at 8 AM UTC (weekly summary)
@@ -12,18 +16,18 @@ crons = ["0 */6 * * *", "0 8 * * 1"]
 # D1 Database
 [[d1_databases]]
 binding = "DB"
-database_name = "competitive-changelog-monitor-db"
-database_id = "placeholder-replace-after-d1-create"
+database_name = "competitive-changelog-monitor-prod"
+database_id = "a2f8e68d-ecc5-41de-98e7-d6108e943e1b"
 
 # KV Namespace (config cache, rate-limit counters)
 [[kv_namespaces]]
 binding = "KV"
-id = "placeholder-replace-after-kv-create"
+id = "404e2530cb6f49d295b82e8b7f488754"
 
 # R2 Bucket (content snapshots)
 [[r2_buckets]]
 binding = "SNAPSHOTS"
-bucket_name = "changelog-monitor-snapshots"
+bucket_name = "changelog-monitor-snapshots-prod"
 
 # Browser Rendering (for JS-rendered sites — requires Workers Paid plan)
 [browser]
