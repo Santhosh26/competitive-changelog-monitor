@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Competitive Changelog Monitor</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app">
+    <!-- Navigation -->
+    <nav class="navbar">
+      <div class="navbar-brand">
+        <h1>📊 Competitive Intelligence</h1>
+      </div>
+      <ul class="nav-menu">
+        <li><a href="#" data-view="feed">Feed</a></li>
+        <li><a href="#" data-view="digests">Digests</a></li>
+        <li><a href="#" data-view="health">Health</a></li>
+        <li><a href="#" data-view="search">Search</a></li>
+        <li><a href="#" data-view="trends">Trends</a></li>
+      </ul>
+      <div class="user-menu">
+        <span id="user-email"></span>
+        <button id="logout-btn" class="btn-text">Logout</button>
+      </div>
+    </nav>
+
+    <!-- Main content -->
+    <main class="container">
+      <!-- Feed View (default) -->
+      <div id="view-feed" class="view active">
+        <div class="feed-header">
+          <h2>Recent Updates</h2>
+          <div class="filters">
+            <select id="filter-competitor" class="filter-select">
+              <option value="">All Competitors</option>
+            </select>
+            <select id="filter-tag" class="filter-select">
+              <option value="">All Tags</option>
+            </select>
+            <select id="filter-relevance" class="filter-select">
+              <option value="">All Relevance</option>
+              <option value="80">Critical (80+)</option>
+              <option value="50">Notable (50-79)</option>
+              <option value="0">Other (&lt;50)</option>
+            </select>
+            <label class="checkbox-label">
+              <input type="checkbox" id="filter-reviewed">
+              Unreviewed only
+            </label>
+          </div>
+        </div>
+        <div id="feed-entries" class="entries-list">
+          <!-- Entries loaded dynamically -->
+        </div>
+      </div>
+
+      <!-- Digests View -->
+      <div id="view-digests" class="view">
+        <div class="digests-header">
+          <h2>Digests</h2>
+          <button id="btn-generate-digest" class="btn-primary">Generate Digest Now</button>
+        </div>
+        <div id="digests-list" class="digests-list">
+          <!-- Digests loaded dynamically -->
+        </div>
+      </div>
+
+      <!-- Health View -->
+      <div id="view-health" class="view">
+        <div class="health-header">
+          <h2>Source Health</h2>
+          <button id="btn-refresh-health" class="btn-secondary">Refresh</button>
+        </div>
+        <div id="health-sources" class="health-grid">
+          <!-- Source health loaded dynamically -->
+        </div>
+      </div>
+
+      <!-- Search View -->
+      <div id="view-search" class="view">
+        <div class="search-header">
+          <h2>Search</h2>
+          <div class="search-box">
+            <input type="text" id="search-input" placeholder="Search entries..." class="search-input">
+            <button id="btn-search" class="btn-primary">Search</button>
+          </div>
+        </div>
+        <div id="search-results" class="entries-list">
+          <!-- Search results loaded dynamically -->
+        </div>
+      </div>
+
+      <!-- Trends View -->
+      <div id="view-trends" class="view">
+        <div class="trends-header">
+          <h2>Trends & Analysis</h2>
+        </div>
+        <div class="trends-grid">
+          <div class="trend-chart">
+            <h3>Entries by Competitor (Last 30 Days)</h3>
+            <canvas id="chart-competitor"></canvas>
+          </div>
+          <div class="trend-chart">
+            <h3>Tags Distribution</h3>
+            <canvas id="chart-tags"></canvas>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- Action Modal -->
+    <div id="action-modal" class="modal" style="display: none;">
+      <div class="modal-content">
+        <span class="close">&times;</span>
+        <h3 id="action-modal-title">Action</h3>
+        <div id="action-modal-body">
+          <!-- Action form loaded dynamically -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Chart.js for trend visualization -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+  <!-- DOMPurify for XSS protection -->
+  <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.6/dist/purify.min.js"></script>
+  <!-- App scripts -->
+  <script src="app.js"></script>
+</body>
+</html>

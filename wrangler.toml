@@ -1,0 +1,30 @@
+name = "competitive-changelog-monitor"
+main = "src/index.ts"
+compatibility_date = "2025-02-27"
+compatibility_flags = ["nodejs_compat"]
+
+# Cron triggers — two schedules:
+# 1. Fetch sources every 6 hours (catch updates within the same day)
+# 2. Send digest every Monday at 8 AM UTC (weekly summary)
+[triggers]
+crons = ["0 */6 * * *", "0 8 * * 1"]
+
+# D1 Database
+[[d1_databases]]
+binding = "DB"
+database_name = "competitive-changelog-monitor-db"
+database_id = "placeholder-replace-after-d1-create"
+
+# KV Namespace (config cache, rate-limit counters)
+[[kv_namespaces]]
+binding = "KV"
+id = "placeholder-replace-after-kv-create"
+
+# R2 Bucket (content snapshots)
+[[r2_buckets]]
+binding = "SNAPSHOTS"
+bucket_name = "changelog-monitor-snapshots"
+
+# Browser Rendering (for JS-rendered sites — requires Workers Paid plan)
+[browser]
+binding = "BROWSER"

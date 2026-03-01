@@ -1,0 +1,22 @@
+{
+  "name": "competitive-changelog-monitor",
+  "version": "1.0.0",
+  "description": "",
+  "private": true,
+  "scripts": {
+    "dev": "wrangler dev",
+    "dev:scheduled": "wrangler dev --test-scheduled",
+    "deploy": "wrangler deploy",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "cheerio": "^1.2.0",
+    "fast-xml-parser": "^5.4.1",
+    "hono": "^4.12.3"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20260305.0",
+    "typescript": "^5.9.3",
+    "wrangler": "^4.69.0"
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm init:*)",
+      "Bash(npm install:*)",
+      "Bash(mkdir:*)",
+      "Bash(npx tsc:*)",
+      "Bash(timeout 15 npx wrangler:*)",
+      "Bash(npx wrangler:*)"
+    ]
+  }
+}
