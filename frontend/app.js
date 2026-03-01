@@ -488,8 +488,8 @@ async function loadHealth() {
  * Render health status card
  */
 function renderHealthCard(source) {
-  const health = source.health || {};
-  const status = health.status || 'unknown';
+  // API returns flat structure, not nested source.health
+  const status = source.status || 'unknown';
 
   const statusColor = {
     'healthy': 'healthy',
@@ -498,13 +498,13 @@ function renderHealthCard(source) {
     'disabled': 'disabled'
   }[status] || 'disabled';
 
-  const lastChecked = health.last_checked_at ?
-    formatDate(health.last_checked_at) : 'Never';
+  const lastChecked = source.last_check_at ?
+    formatDate(source.last_check_at) : 'Never';
 
-  const lastError = health.last_error ?
+  const lastError = source.last_error ?
     `<div class="health-detail-row">
        <span>Last error:</span>
-       <span>${escapeHtml(health.last_error)}</span>
+       <span>${escapeHtml(source.last_error)}</span>
      </div>` : '';
 
   return `
@@ -512,7 +512,7 @@ function renderHealthCard(source) {
       <div class="health-status">
         <div class="status-indicator ${statusColor}"></div>
         <div>
-          <div class="health-name">${escapeHtml(source.name)}</div>
+          <div class="health-name">${escapeHtml(source.competitor_name || source.name || 'Unknown')}</div>
           <div class="health-type">${source.source_type}</div>
         </div>
       </div>
@@ -528,18 +528,18 @@ function renderHealthCard(source) {
         </div>
         <div class="health-detail-row">
           <span>Consecutive failures:</span>
-          <span>${health.consecutive_failures || 0}</span>
+          <span>${source.consecutive_failures || 0}</span>
         </div>
         <div class="health-detail-row">
           <span>Avg response:</span>
-          <span>${health.avg_response_time_ms || 'N/A'}ms</span>
+          <span>${source.avg_response_ms || 'N/A'}ms</span>
         </div>
         ${lastError}
       </div>
 
       <div class="health-actions">
         ${status === 'disabled' ? `
-          <button class="btn-primary btn-small btn-reset-health" data-source-id="${source.id}">
+          <button class="btn-primary btn-small btn-reset-health" data-source-id="${source.source_id}">
             Re-enable
           </button>
         ` : ''}

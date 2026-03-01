@@ -107,10 +107,11 @@ export async function requireAuth(c: Context<AppEnv>, next: Next) {
       return;
     }
 
-    // Check if running in development mode
+    // Check if running without Cloudflare Access (dev mode or Access not configured)
     const isLocal = url.hostname === 'localhost' || url.hostname === '127.0.0.1';
-    if (isLocal) {
-      console.warn('[auth] No CF_Authorization token found (development mode) — allowing request');
+    const isWorkersDevDomain = url.hostname.endsWith('.workers.dev');
+    if (isLocal || isWorkersDevDomain) {
+      console.warn('[auth] No CF_Authorization token found — allowing request (Access not configured)');
       c.set('user:email', 'dev@local');
       c.set('user:name', 'Developer');
       await next();

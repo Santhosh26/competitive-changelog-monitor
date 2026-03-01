@@ -12,14 +12,14 @@ VALUES (
   6
 );
 
--- Fastly Blog (HTML — no RSS feed available)
+-- Fastly Blog RSS
 INSERT OR IGNORE INTO sources (id, competitor_name, source_url, source_type, parser_config, check_interval_hours)
 VALUES (
   'src_fastly_blog',
   'Fastly',
-  'https://www.fastly.com/blog',
-  'html',
-  '{"article_selector": "article", "title_selector": "h2 a, h3 a", "date_selector": "time[datetime]", "summary_selector": "p", "link_attribute": "href"}',
+  'https://www.fastly.com/blog_rss.xml',
+  'rss',
+  '{}',
   6
 );
 
